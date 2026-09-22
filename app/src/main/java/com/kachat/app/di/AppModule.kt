@@ -94,6 +94,10 @@ object AppModule {
         //    request/response, no bodies).
         val verboseLogger = HttpLoggingInterceptor().apply {
             level = if (BuildConfig.DEBUG) HttpLoggingInterceptor.Level.BODY else HttpLoggingInterceptor.Level.BASIC
+            // BODY level logs every request header, and this client is the shared singleton —
+            // Nextcloud's Basic-auth credential (NextcloudTalkClient) would land in logcat
+            // verbatim whenever the verbose toggle is on in a debug build.
+            redactHeader("Authorization")
         }
         return OkHttpClient.Builder()
             .connectTimeout(15, TimeUnit.SECONDS)
