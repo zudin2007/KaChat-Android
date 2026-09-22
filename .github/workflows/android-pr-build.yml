@@ -1,0 +1,40 @@
+name: Android PR build
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+# A newer push to the same PR cancels the in-flight build of the older commit.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-debug-apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      # Bootstrap JVM for the Gradle wrapper only: gradle/gradle-daemon-jvm.properties
+      # pins the daemon to a JetBrains JDK 21, which Gradle auto-provisions from the
+      # foojay URLs recorded there. The Android SDK comes preinstalled on the runner
+      # image; AGP downloads any missing platform (compileSdk 36) itself.
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      # The documented from-source build (README): the play-flavor debug APK.
+      # google-services.json and keystore.properties are absent by design — the build
+      # is expected to succeed without them (push notifications simply stay off).
+      - name: Build debug APK
+        run: ./gradlew assemblePlayDebug
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: app-play-debug-apk
+          path: app/build/outputs/apk/play/debug/*.apk
+          if-no-files-found: error
